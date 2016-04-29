@@ -3,14 +3,18 @@ package main
 import (
     "fmt"
 	"time"
+    "log"
+	"net/http"
+
+	"github.com/gorilla/mux"
 
 	"github.com/stefanoschrs/proxymeister/sqlite"
 	"github.com/stefanoschrs/proxymeister/crawler"
 	"github.com/stefanoschrs/proxymeister/validator"
 )
 
-const FETCH_INTERVAL = time.Hour * 1
-const VALIDATE_INTERVAL = time.Minute* 15
+const FETCH_INTERVAL = time.Minute * 30
+const VALIDATE_INTERVAL = time.Minute * 10
 const DB_PATH = "./data/proxy.db"
 
 func fetchAndInsertProxies(){
@@ -53,6 +57,21 @@ func validateProxies(){
 	}
 }
 
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintln(w, "Welcome!")
+}
+
+func ProxyHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Fprintf(w, "Get Random Proxy")
+}
+
+func ProxyCountHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	count := vars["count"]
+
+    fmt.Fprintf(w, "Count: %s", count)
+}
+
 func main(){
 	fmt.Println(" _______                                                                  __              __                                ")
 	fmt.Println("/       \\                                                                /  |            /  |                              ")
@@ -71,5 +90,10 @@ func main(){
 	go fetchAndInsertProxies()
 	go validateProxies()
 
-	time.Sleep(time.Hour * 2)
+	router := mux.NewRouter().StrictSlash(true)
+    router.HandleFunc("/", IndexHandler)
+    router.HandleFunc("/proxy", ProxyHandler)
+    router.HandleFunc("/proxy/{count}", ProxyCountHandler)
+
+	log.Fatal(http.ListenAndServe(":5000", router))
 }

@@ -2,7 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
-	
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -87,7 +87,7 @@ func SelectRecentProxies(db *sql.DB) []Proxy {
 	rows, err := db.Query(`
 		SELECT *
 		FROM Proxy
-		WHERE lastChecked < date('now', '15 minutes')
+		WHERE lastChecked < date('now', '10 minutes')
 		ORDER BY lastChecked ASC
 	`)
 	checkErr(err)
