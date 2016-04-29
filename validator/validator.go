@@ -7,7 +7,7 @@ import (
     "github.com/parnurzeal/gorequest"
 )
 
-const REQ_TIMEOUT = time.Second * 10
+const REQ_TIMEOUT = time.Second * 15
 
 var pattern, _ = regexp.Compile(`^[0-9]{1,3}(\.[0-9]{1,3}){3}$`)
 
