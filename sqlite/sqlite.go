@@ -6,16 +6,16 @@ import (
 )
 
 type Proxy struct {
-	ip			string
-	port		int
-	status		int
-	lastChecked string
+	Ip			string
+	Port		int
+	Status		int
+	LastChecked string
 }
 
 func InitDB(filepath string) *sql.DB {
 	db, err := sql.Open("sqlite3", filepath)
 	checkErr(err)
-	
+
 	if db == nil {
 		panic("db nil")
 	}
@@ -36,7 +36,8 @@ func CreateTable(db *sql.DB) {
 }
 
 func InsertProxy(db *sql.DB, ip string, port int) {
-	stmt, err := db.Prepare(`INSERT OR IGNORE INTO Proxy(ip,port) VALUES(?, ?)`)
+	stmt, err := db.Prepare(`
+		INSERT OR IGNORE INTO Proxy(ip, port) VALUES (?, ?)`)
 	checkErr(err)
 	defer stmt.Close()
 
@@ -44,7 +45,7 @@ func InsertProxy(db *sql.DB, ip string, port int) {
 	checkErr(err2)
 }
 
-func UpdateProxy(db *sql.DB, ip string, port , status int) {
+func UpdateProxy(db *sql.DB, ip string, port, status int) {
 	stmt, err := db.Prepare(`
 		UPDATE Proxy
 		SET status = ?,
@@ -60,14 +61,41 @@ func UpdateProxy(db *sql.DB, ip string, port , status int) {
 }
 
 func SelectProxies(db *sql.DB, status int) []Proxy {
-	rows, err := db.Query(`SELECT * FROM Proxy WHERE STATUS = ? ORDER BY lastChecked DESC`, status)
+	rows, err := db.Query(`
+		SELECT *
+		FROM Proxy
+		WHERE STATUS = ?
+		ORDER BY lastChecked DESC
+	`, status)
 	checkErr(err)
 	defer rows.Close()
 
 	var result []Proxy
 	for rows.Next() {
 		item := Proxy{}
-		err2 := rows.Scan(&item.ip, &item.port, &item.status, &item.lastChecked)
+		err2 := rows.Scan(&item.Ip, &item.Port, &item.Status, &item.LastChecked)
+		checkErr(err2)
+
+		result = append(result, item)
+	}
+
+	return result
+}
+
+func SelectRecentProxies(db *sql.DB) []Proxy {
+	rows, err := db.Query(`
+		SELECT *
+		FROM Proxy
+		WHERE lastChecked < date('now', '15 minutes')
+		ORDER BY lastChecked ASC
+	`)
+	checkErr(err)
+	defer rows.Close()
+
+	var result []Proxy
+	for rows.Next() {
+		item := Proxy{}
+		err2 := rows.Scan(&item.Ip, &item.Port, &item.Status, &item.LastChecked)
 		checkErr(err2)
 
 		result = append(result, item)
@@ -77,14 +105,18 @@ func SelectProxies(db *sql.DB, status int) []Proxy {
 }
 
 func SelectAllProxies(db *sql.DB) []Proxy {
-	rows, err := db.Query(`SELECT * FROM Proxy ORDER BY lastChecked DESC`)
+	rows, err := db.Query(`
+		SELECT *
+		FROM Proxy
+		ORDER BY lastChecked DESC
+	`)
 	checkErr(err)
 	defer rows.Close()
 
 	var result []Proxy
 	for rows.Next() {
 		newProxy := Proxy{}
-		err2 := rows.Scan(&newProxy.ip, &newProxy.port, &newProxy.status, &newProxy.lastChecked)
+		err2 := rows.Scan(&newProxy.Ip, &newProxy.Port, &newProxy.Status, &newProxy.LastChecked)
 		checkErr(err2)
 
 		result = append(result, newProxy)
