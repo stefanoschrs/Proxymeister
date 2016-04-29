@@ -25,9 +25,3 @@ func Validate(myIp string, proxy string) bool {
 
 	return true
 }
-
-// func main(){
-// 	myIp := GetMyIp()
-// 	fmt.Println(myIp)
-// 	fmt.Println(Validate(myIp, "http://190.147.220.37:8080"))
-// }
