@@ -83,6 +83,29 @@ func SelectProxies(db *sql.DB, status int) []Proxy {
 	return result
 }
 
+func SelectRandomProxies(db *sql.DB, count int) []Proxy {
+	rows, err := db.Query(`
+		SELECT *
+		FROM Proxy
+		WHERE STATUS = 1
+		ORDER BY RANDOM()
+		LIMIT ?
+	`, count)
+	checkErr(err)
+	defer rows.Close()
+
+	var result []Proxy
+	for rows.Next() {
+		item := Proxy{}
+		err2 := rows.Scan(&item.Ip, &item.Port, &item.Status, &item.LastChecked)
+		checkErr(err2)
+
+		result = append(result, item)
+	}
+
+	return result
+}
+
 func SelectRecentProxies(db *sql.DB) []Proxy {
 	rows, err := db.Query(`
 		SELECT *

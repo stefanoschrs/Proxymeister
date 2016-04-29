@@ -4,6 +4,8 @@ import (
     "fmt"
 	"time"
     "log"
+	"strconv"
+	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -16,9 +18,10 @@ import (
 const FETCH_INTERVAL = time.Minute * 30
 const VALIDATE_INTERVAL = time.Minute * 10
 const DB_PATH = "./data/proxy.db"
+const PORT = 5000
 
 func fetchAndInsertProxies(){
-	fmt.Printf("%-25s Interval:%s\n", "Proxy Fetcher Started!", FETCH_INTERVAL)
+	fmt.Printf("> %-25s%-10s %s\n", "Proxy Fetcher Started!", "Interval:", FETCH_INTERVAL)
 	for range time.Tick(FETCH_INTERVAL){
 		db := sqlite.InitDB(DB_PATH)
 		defer db.Close()
@@ -33,7 +36,7 @@ func fetchAndInsertProxies(){
 }
 
 func validateProxies(){
-	fmt.Printf("%-25s Interval:%s\n", "Proxy Validator Started!", VALIDATE_INTERVAL)
+	fmt.Printf("> %-25s%-10s %s\n", "Proxy Validator Started!", "Interval:", VALIDATE_INTERVAL)
 	for range time.Tick(VALIDATE_INTERVAL){
 		myIp := validator.GetMyIp()
 		fmt.Printf("My IP: %s\n", myIp)
@@ -58,18 +61,28 @@ func validateProxies(){
 }
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintln(w, "Welcome!")
+    fmt.Fprintln(w, "Yo! Welcome to Proxymeister's API")
 }
 
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Get Random Proxy")
-}
-
-func ProxyCountHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	count := vars["count"]
+	var count int
 
-    fmt.Fprintf(w, "Count: %s", count)
+	if s, err := strconv.ParseInt(vars["count"], 10, 32); err == nil {
+		count = int(s)
+	} else{
+		count = 1
+	}
+
+	db := sqlite.InitDB(DB_PATH)
+	defer db.Close()
+
+	var proxyList []string
+	for _, proxy := range sqlite.SelectRandomProxies(db, count){
+		proxyList = append(proxyList, fmt.Sprintf("%s:%d", proxy.Ip, proxy.Port))
+	}
+
+	json.NewEncoder(w).Encode(proxyList)
 }
 
 func main(){
@@ -93,7 +106,8 @@ func main(){
 	router := mux.NewRouter().StrictSlash(true)
     router.HandleFunc("/", IndexHandler)
     router.HandleFunc("/proxy", ProxyHandler)
-    router.HandleFunc("/proxy/{count}", ProxyCountHandler)
+    router.HandleFunc("/proxy/{count}", ProxyHandler)
 
-	log.Fatal(http.ListenAndServe(":5000", router))
+	fmt.Printf("> %-25s%-10s %d\n", "API Server Started", "Port:", PORT)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", PORT), router))
 }
