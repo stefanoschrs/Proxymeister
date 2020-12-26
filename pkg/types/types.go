@@ -5,16 +5,16 @@ import "gorm.io/gorm"
 type Proxy struct {
 	gorm.Model
 
-	Ip          string `json:"ip"`
-	Port        int    `json:"port"`
-	Status      int    `json:"status"`
+	Ip     string `json:"ip"`
+	Port   int    `json:"port"`
+	Status int    `json:"status"`
 
-	Source      string `json:"source"`
+	Source string `json:"source"`
 }
 
 type ProxySource struct {
 	Name string
-	Url string
+	Url  string
 }
 
 const (
@@ -23,6 +23,8 @@ const (
 )
 
 const (
-	ErrInvalidIp = "invalid ip"
-	ErrInvalidPort = "invalid port"
+	ErrInvalidIp             = "invalid ip"
+	ErrInvalidPort           = "invalid port"
+	ErrValidationPassthrough = "proxy passthrough"
+	ErrValidationBadSquid    = "squid misconfiguration"
 )
