@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -22,4 +24,20 @@ func LoadEnv() (err error) {
 	}
 
 	return godotenv.Load(p)
+}
+
+func GetMyIP() (ip string, err error) {
+	res, err := http.Get("http://bot.whatismyipaddress.com")
+	if err != nil {
+		return
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return
+	}
+
+	ip = string(body)
+	return
 }

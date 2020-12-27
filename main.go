@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/stefanoschrs/proxymeister/internal/logging"
 	"log"
 	"math/rand"
 	"os"
@@ -34,8 +35,16 @@ func printIntro() {
 func main() {
 	printIntro()
 
+	var err error
+
+	// ------------------------ Initialize Logging ------------------------- //
+	err = logging.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// ------------------------- Initialize Config ------------------------- //
-	err := utils.LoadConfig()
+	err = utils.LoadConfig()
 	if err != nil {
 		log.Fatal("config.LoadConfig", err)
 	}

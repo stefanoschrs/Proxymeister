@@ -5,9 +5,11 @@ import "gorm.io/gorm"
 type Proxy struct {
 	gorm.Model
 
-	Ip     string `json:"ip"`
-	Port   int    `json:"port"`
-	Status int    `json:"status"`
+	Ip           string `json:"ip"`
+	Port         int    `json:"port"`
+
+	Status       int    `json:"status"`
+	FailedChecks int    `json:"failedChecks"`
 
 	Source string `json:"source"`
 }
@@ -18,8 +20,9 @@ type ProxySource struct {
 }
 
 const (
-	ProxyStatusFoo int = iota
-	ProxyStatusBar
+	ProxyStatusFresh int = iota
+	ProxyStatusActive
+	ProxyStatusInactive
 )
 
 const (
