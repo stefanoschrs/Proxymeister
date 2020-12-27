@@ -27,3 +27,11 @@ func Init() (err error) {
 func Debug(args ...interface{}) {
 	zap.S().Debug(args...)
 }
+
+func Debugf(template string, args ...interface{}) {
+	zap.S().Debugf(template, args...)
+}
+
+func Error(args ...interface{}) {
+	zap.S().Error(args...)
+}

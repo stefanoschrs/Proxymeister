@@ -3,6 +3,7 @@ package cron
 import (
 	"fmt"
 	"github.com/stefanoschrs/proxymeister/internal/logging"
+	"go.uber.org/zap"
 	"log"
 
 	"github.com/stefanoschrs/proxymeister/internal/database"
@@ -17,7 +18,7 @@ import (
 
 func fetchProxies(db database.DB) {
 	logging.Debug("Fetching proxies..")
-	
+
 	proxies, err := crawler.FetchProxies()
 	if err != nil {
 		log.Println(err)
@@ -51,7 +52,7 @@ func checkProxies(db database.DB) {
 	}
 
 	workerCount := 10
-	validationTries := 3
+	validationTries := 2
 
 	workerData := make(chan types.Proxy, workerCount)
 	gather := make(chan result)
@@ -61,7 +62,7 @@ func checkProxies(db database.DB) {
 
 	myIp, err := utils.GetMyIP()
 	if err != nil {
-		log.Println("utils.GetMyIP", err)
+		logging.Error("utils.GetMyIP", err)
 		return
 	}
 
@@ -69,7 +70,7 @@ func checkProxies(db database.DB) {
 	for i := 0; i < workerCount; i++ {
 		go func(t chan empty, w chan types.Proxy, g chan result) {
 			for proxy := range w {
-				log.Printf("Processing %s:%d..\n", proxy.Ip, proxy.Port)
+				logging.Debugf("Processing %s:%d..", proxy.Ip, proxy.Port)
 
 				var tries []resultTry
 				for j := 0; j < validationTries; j++ {
@@ -101,11 +102,12 @@ func checkProxies(db database.DB) {
 	// Add data to be processed
 	proxies, err := db.GetProxies()
 	if err != nil {
-		log.Println(err)
+		logging.Error("db.GetProxies", err)
 		return
 	}
-	log.Printf("Found %d proxies\n", len(proxies))
-	for _, proxy := range proxies[:20] {
+
+	logging.Debugf("Found %d proxies", len(proxies))
+	for _, proxy := range proxies[:5] {
 		workerData <- proxy
 	}
 	close(workerData)
@@ -120,7 +122,7 @@ func checkProxies(db database.DB) {
 	close(tracker)
 
 	for _, r := range results {
-		fmt.Printf("%+v\n", r)
+		zap.S().Info(r)
 	}
 }
 
