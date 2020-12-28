@@ -35,4 +35,13 @@ func SetRoutes(router *gin.Engine) {
 		apiPublic.HEAD("/health", headHealth)
 		apiPublic.GET("/proxies", getProxies)
 	}
+
+	// Private routes: /admin
+	apiPrivate := router.Group("/admin")
+	// TODO: Add some auth
+	apiPrivate.Use(cors.New(corsConfig))
+	{
+		apiPrivate.POST("/fetch", postAdminFetch)
+		apiPrivate.POST("/check", postAdminCheck)
+	}
 }

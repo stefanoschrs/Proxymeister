@@ -16,7 +16,7 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func fetchProxies(db database.DB) {
+func FetchProxies(db database.DB) {
 	logging.Debug("Fetching proxies..")
 
 	proxies, err := crawler.FetchProxies()
@@ -38,7 +38,7 @@ func fetchProxies(db database.DB) {
 	}
 }
 
-func checkProxies(db database.DB) {
+func CheckProxies(db database.DB) {
 	logging.Debug("Checking proxies..")
 
 	type empty struct{}
@@ -153,6 +153,34 @@ func checkProxies(db database.DB) {
 	}
 }
 
+func Init(db database.DB) (c *cron.Cron, err error) {
+	c = cron.New()
+
+	// fetchProxies
+	_, err = c.AddFunc("@midnight", func() {
+		FetchProxies(db)
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to add fetchProxies func. %w", err)
+		return
+	}
+	//FetchProxies(db)
+
+	// checkProxies
+	_, err = c.AddFunc("0 */2 * * *", func() {
+		CheckProxies(db)
+	})
+	if err != nil {
+		err = fmt.Errorf("failed to add checkProxies func. %w", err)
+		return
+	}
+	//CheckProxies(db)
+
+	c.Start()
+
+	return
+}
+
 func processValidationError(err error) {
 	// TODO: Detect all errors and handle accordingly
 
@@ -167,32 +195,4 @@ func processValidationError(err error) {
 	}
 
 	logging.Error(err)
-}
-
-func Init(db database.DB) (c *cron.Cron, err error) {
-	c = cron.New()
-
-	// fetchProxies
-	_, err = c.AddFunc("@midnight", func() {
-		fetchProxies(db)
-	})
-	if err != nil {
-		err = fmt.Errorf("failed to add fetchProxies func. %w", err)
-		return
-	}
-	//fetchProxies(db)
-
-	// checkProxies
-	_, err = c.AddFunc("0 */2 * * *", func() {
-		checkProxies(db)
-	})
-	if err != nil {
-		err = fmt.Errorf("failed to add checkProxies func. %w", err)
-		return
-	}
-	//checkProxies(db)
-
-	c.Start()
-
-	return
 }

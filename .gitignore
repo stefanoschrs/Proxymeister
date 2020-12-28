@@ -1,3 +1,5 @@
 .env
 .idea
+
 proxymeister.db
+pkg/crawler/sources/*.so
