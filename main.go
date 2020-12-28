@@ -66,6 +66,10 @@ func main() {
 	}
 
 	// -------------------------------- Gin -------------------------------- //
+	if os.Getenv(gin.EnvGinMode) != "" {
+		gin.SetMode(os.Getenv(gin.EnvGinMode))
+	}
+
 	router := webserver.Init()
 
 	webserver.SetMiddleware(router)
@@ -75,16 +79,16 @@ func main() {
 
 	webserver.SetRoutes(router)
 
-	if !gin.IsDebugging() {
-		port := os.Getenv("PORT")
-		if port == "" {
-			port = "8080"
-		}
-
-		log.Printf("Listening on :%s...\n", port)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+	port = ":" + port
 
-	err = router.Run()
+	if !gin.IsDebugging() {
+		log.Printf("Listening and serving HTTP on %s\n", port)
+	}
+	err = router.Run(port)
 	if err != nil {
 		log.Fatal(err)
 	}

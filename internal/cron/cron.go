@@ -143,6 +143,8 @@ func Init(db database.DB) (c *cron.Cron, err error) {
 	}
 	//CheckProxies(db)
 
+	// TODO: Clean up proxies with X failed tries
+
 	c.Start()
 
 	return
@@ -159,6 +161,8 @@ func processValidationError(err error) {
 		return
 	} else if strings.Contains(err.Error(), "connect: connection refused") {
 		return
+	} else if strings.Contains(err.Error(), "i/o timeout") {
+		return
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
 		return
 	} else if strings.Contains(err.Error(), "tls: server chose an unconfigured cipher suite") {
@@ -170,6 +174,8 @@ func processValidationError(err error) {
 	} else if strings.Contains(err.Error(), "Proxy Authentication Required") {
 		return
 	} else if strings.Contains(err.Error(), "Forbidden") {
+		return
+	} else if strings.Contains(err.Error(), "Forwarding failure") {
 		return
 	} else if strings.Contains(err.Error(), "Bad Gateway") {
 		return

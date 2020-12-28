@@ -2,4 +2,7 @@
 .idea
 
 proxymeister.db
+
+proxymeister
+db-helper
 pkg/crawler/sources/*.so
