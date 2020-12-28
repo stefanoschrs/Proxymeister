@@ -18,25 +18,32 @@ import (
 const validationTimeout = 10 * time.Second
 
 func getValidationUrl(ssl bool) string {
-	urls := []string{
-		// Very Good
-		"myip.dnsomatic.com",
+	mixUrls := []string{
 		"bot.whatismyipaddress.com",
 		"ipv4bot.whatismyipaddress.com",
+		"ipinfo.io/ip",
 		"icanhazip.com",
-
-		// Sometimes SQUID issues
-		//"cpanel.com/showip.shtml",
-		//"ipecho.net/plain",
-		//"checkip.amazonaws.com",
-		//"myexternalip.com/raw",
-		//"ip-api.com/line/?fields=query",
-		//"api.duckduckgo.com/?q=my+ip&format=xml",
 	}
 
+	httpUrls := []string{}
+
+	httpsUrls := []string{
+		"nordvpn.com/wp-admin/admin-ajax.php?action=get_user_info_data",
+		"api.myip.com",
+		"ip4.seeip.org",
+		"ipapi.co/ip",
+		"api.ipify.org",
+		"api.my-ip.io/ip.txt",
+		"api4.my-ip.io/ip.txt",
+	}
+
+	urls := mixUrls
 	prefix := "http"
 	if ssl {
 		prefix += "s"
+		urls = append(urls, httpsUrls...)
+	} else {
+		urls = append(urls, httpUrls...)
 	}
 
 	return prefix + "://" + urls[rand.Intn(len(urls))]

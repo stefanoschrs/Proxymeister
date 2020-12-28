@@ -3,8 +3,8 @@ package cron
 import (
 	"fmt"
 	"github.com/stefanoschrs/proxymeister/internal/logging"
-	"go.uber.org/zap"
 	"log"
+	"strings"
 
 	"github.com/stefanoschrs/proxymeister/internal/database"
 
@@ -107,7 +107,7 @@ func checkProxies(db database.DB) {
 	}
 
 	logging.Debugf("Found %d proxies", len(proxies))
-	for _, proxy := range proxies[:5] {
+	for _, proxy := range proxies {
 		workerData <- proxy
 	}
 	close(workerData)
@@ -122,8 +122,51 @@ func checkProxies(db database.DB) {
 	close(tracker)
 
 	for _, r := range results {
-		zap.S().Info(r)
+		logging.Debugf("Updating %s:%d", r.Proxy.Ip, r.Proxy.Port)
+
+		var sumLatency int64
+		var successfulTries int64
+		for _, try := range r.Tries {
+			if try.Error != nil {
+				processValidationError(try.Error)
+				continue
+			}
+			sumLatency += try.Latency
+			successfulTries += 1
+		}
+		if sumLatency > 0 {
+			r.Proxy.Status = types.ProxyStatusActive
+			r.Proxy.Latency = sumLatency / successfulTries
+			r.Proxy.FailedChecks = 0
+		} else {
+			r.Proxy.Status = types.ProxyStatusInactive
+			r.Proxy.Latency = 0
+			r.Proxy.FailedChecks += 1
+		}
+
+		err = db.UpdateProxy(r.Proxy)
+		if err != nil {
+			logging.Error("failed to update proxy",
+				"id", r.Proxy.ID,
+				"err", err)
+		}
 	}
+}
+
+func processValidationError(err error) {
+	// TODO: Detect all errors and handle accordingly
+
+	if strings.Contains(err.Error(), "context deadline exceeded") {
+		return
+	} else if strings.Contains(err.Error(), "unexpected EOF") {
+		return
+	} else if strings.Contains(err.Error(), "Too many open connections") {
+		return
+	} else if strings.Contains(err.Error(), "Proxy Authentication Required") {
+		return
+	}
+
+	logging.Error(err)
 }
 
 func Init(db database.DB) (c *cron.Cron, err error) {
@@ -140,15 +183,14 @@ func Init(db database.DB) (c *cron.Cron, err error) {
 	//fetchProxies(db)
 
 	// checkProxies
-	_, err = c.AddFunc("@every 1h", func() {
+	_, err = c.AddFunc("0 */2 * * *", func() {
 		checkProxies(db)
 	})
 	if err != nil {
 		err = fmt.Errorf("failed to add checkProxies func. %w", err)
 		return
 	}
-
-	checkProxies(db)
+	//checkProxies(db)
 
 	c.Start()
 

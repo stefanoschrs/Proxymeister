@@ -33,6 +33,7 @@ func Init() (db DB, err error) {
 
 func (db DB) GetProxies() (proxies []types.Proxy, err error) {
 	res := db.
+		Where("status = ?", types.ProxyStatusActive).
 		Order("updated_at DESC").
 		Find(&proxies)
 	if res.Error != nil {
@@ -78,6 +79,34 @@ func (db DB) CreateProxy(p types.Proxy) (proxy types.Proxy, created bool, err er
 	return
 }
 
+func (db DB) GetProxy(id uint) (proxy types.Proxy, err error) {
+	res := db.
+		Where("id = ?", id).
+		First(&proxy)
+	if res.Error != nil {
+		err = res.Error
+		return
+	}
+
+	return
+}
+
+func (db DB) UpdateProxy(p types.Proxy) (err error) {
+	res := db.
+		Model(&p).
+		Updates(map[string]interface{}{
+			"status": p.Status,
+			"latency": p.Latency,
+			"failed_checks": p.FailedChecks,
+		})
+	if res.Error != nil {
+		err = res.Error
+		return
+	}
+
+	return
+}
+
 func (db DB) DeleteProxy(id uint) (err error) {
 	res := db.
 		Where("id = ?", id).
@@ -89,25 +118,3 @@ func (db DB) DeleteProxy(id uint) (err error) {
 
 	return
 }
-
-//func (db DB) UpdateAthleteSegmentStats(athleteId, segmentId, pr, efforts uint) (err error) {
-//	entry := types.Entry{
-//		SegmentId: segmentId,
-//		AthleteId: athleteId,
-//		PR:        pr,
-//		Efforts:   efforts,
-//	}
-//	res := db.
-//		Where(entry).
-//		Assign(types.Entry{
-//			PR:      pr,
-//			Efforts: efforts,
-//		}).
-//		FirstOrCreate(&entry)
-//	if res.Error != nil {
-//		err = res.Error
-//		return
-//	}
-//
-//	return
-//}

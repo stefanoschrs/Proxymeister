@@ -1,13 +1,12 @@
 package validator
 
 import (
-	"io/ioutil"
 	"log"
 	"math/rand"
-	"net/http"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stefanoschrs/proxymeister/pkg/utils"
 )
 
 func TestValidate(t *testing.T) {
@@ -31,23 +30,6 @@ func TestValidate(t *testing.T) {
 	for _, testCase := range testCases {
 		latency, err := Validate(myIp, testCase.Ip, testCase.Port, false)
 		if err != nil {
-			if strings.Contains(err.Error(), "deadline exceeded") {
-				log.Println("Timeout")
-				continue
-			}
-			if strings.Contains(err.Error(), "invalid port") {
-				log.Println("Invalid Port")
-				continue
-			}
-			if strings.Contains(err.Error(), "no such host") {
-				log.Println("Invalid IP")
-				continue
-			}
-			if strings.Contains(err.Error(), "Proxy Authentication Required") {
-				log.Println("Locked proxy")
-				continue
-			}
-
 			log.Println(err)
 		} else {
 			log.Printf("Proxy: ok\tSSL: %v\tLatency: %dms\n", testCase.Ssl, latency)
@@ -61,16 +43,10 @@ func TestMain(m *testing.M) {
 }
 
 func getMyIp() string {
-	res, err := http.Get("http://bot.whatismyipaddress.com")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
+	ip, err := utils.GetMyIP()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return string(body)
+	return ip
 }
