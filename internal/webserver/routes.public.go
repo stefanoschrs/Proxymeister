@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"github.com/stefanoschrs/proxymeister/pkg/types"
 	"log"
 	"net/http"
 
@@ -16,7 +17,9 @@ func headHealth(c *gin.Context) {
 func getProxies(c *gin.Context) {
 	db := utils.ExtractDB(c)
 
-	proxies, err := db.GetProxies()
+	proxies, err := db.GetProxies(map[string]interface{}{
+		"status": types.ProxyStatusActive,
+	})
 	if err != nil {
 		log.Println("db.GetProxies", err)
 		c.AbortWithStatus(http.StatusInternalServerError)

@@ -42,23 +42,13 @@ func CheckProxies(db database.DB) {
 	logging.Debug("Checking proxies..")
 
 	type empty struct{}
-	type resultTry struct {
-		Latency int64
-		Error   error
-	}
-	type result struct {
-		Proxy types.Proxy
-		Tries []resultTry
-	}
 
+	// TODO: Retrieve from .env
 	workerCount := 10
 	validationTries := 2
 
 	workerData := make(chan types.Proxy, workerCount)
-	gather := make(chan result)
 	tracker := make(chan empty)
-
-	var results []result
 
 	myIp, err := utils.GetMyIP()
 	if err != nil {
@@ -68,39 +58,48 @@ func CheckProxies(db database.DB) {
 
 	// Initialize workers
 	for i := 0; i < workerCount; i++ {
-		go func(t chan empty, w chan types.Proxy, g chan result) {
+		// TODO: Move func
+		go func(t chan empty, w chan types.Proxy) {
 			for proxy := range w {
-				logging.Debugf("Processing %s:%d..", proxy.Ip, proxy.Port)
+				logging.Debugf("Processing %s:%d ..", proxy.Ip, proxy.Port)
 
-				var tries []resultTry
+				var sumLatency int64
+				var successfulTries int64
+
 				for j := 0; j < validationTries; j++ {
 					latency, validationErr := validator.Validate(myIp, proxy.Ip, proxy.Port, true)
+					if validationErr != nil {
+						processValidationError(validationErr)
+						continue
+					}
 
-					tries = append(tries, resultTry{
-						Latency: latency,
-						Error:   validationErr,
-					})
+					sumLatency += latency
+					successfulTries += 1
 				}
 
-				g <- result{
-					proxy,
-					tries,
+				if sumLatency > 0 {
+					proxy.Status = types.ProxyStatusActive
+					proxy.Latency = sumLatency / successfulTries
+					proxy.FailedChecks = 0
+				} else {
+					proxy.Status = types.ProxyStatusInactive
+					proxy.Latency = 0
+					proxy.FailedChecks += 1
+				}
+
+				err = db.UpdateProxy(proxy)
+				if err != nil {
+					logging.Error("failed to update proxy",
+						"id", proxy.ID,
+						"err", err)
 				}
 			}
 			tracker <- empty{}
-		}(tracker, workerData, gather)
+		}(tracker, workerData)
 	}
 
-	// Gather results
-	go func() {
-		for r := range gather {
-			results = append(results, r)
-		}
-		tracker <- empty{}
-	}()
-
 	// Add data to be processed
-	proxies, err := db.GetProxies()
+	proxies, err := db.GetProxies(map[string]interface{}{})
 	if err != nil {
 		logging.Error("db.GetProxies", err)
 		return
@@ -116,41 +115,9 @@ func CheckProxies(db database.DB) {
 	for i := 0; i < workerCount; i++ {
 		<-tracker
 	}
-	close(gather)
-
-	<-tracker
 	close(tracker)
 
-	for _, r := range results {
-		logging.Debugf("Updating %s:%d", r.Proxy.Ip, r.Proxy.Port)
-
-		var sumLatency int64
-		var successfulTries int64
-		for _, try := range r.Tries {
-			if try.Error != nil {
-				processValidationError(try.Error)
-				continue
-			}
-			sumLatency += try.Latency
-			successfulTries += 1
-		}
-		if sumLatency > 0 {
-			r.Proxy.Status = types.ProxyStatusActive
-			r.Proxy.Latency = sumLatency / successfulTries
-			r.Proxy.FailedChecks = 0
-		} else {
-			r.Proxy.Status = types.ProxyStatusInactive
-			r.Proxy.Latency = 0
-			r.Proxy.FailedChecks += 1
-		}
-
-		err = db.UpdateProxy(r.Proxy)
-		if err != nil {
-			logging.Error("failed to update proxy",
-				"id", r.Proxy.ID,
-				"err", err)
-		}
-	}
+	logging.Debug("Checking finished!")
 }
 
 func Init(db database.DB) (c *cron.Cron, err error) {
@@ -188,9 +155,23 @@ func processValidationError(err error) {
 		return
 	} else if strings.Contains(err.Error(), "unexpected EOF") {
 		return
+	} else if strings.Contains(err.Error(), "certificate signed by unknown authority") {
+		return
+	} else if strings.Contains(err.Error(), "connect: connection refused") {
+		return
+	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
+		return
+	} else if strings.Contains(err.Error(), "tls: server chose an unconfigured cipher suite") {
+		return
+	} else if strings.Contains(err.Error(), "malformed HTTP status code") {
+		return
 	} else if strings.Contains(err.Error(), "Too many open connections") {
 		return
 	} else if strings.Contains(err.Error(), "Proxy Authentication Required") {
+		return
+	} else if strings.Contains(err.Error(), "Forbidden") {
+		return
+	} else if strings.Contains(err.Error(), "Bad Gateway") {
 		return
 	}
 

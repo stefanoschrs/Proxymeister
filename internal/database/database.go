@@ -31,9 +31,14 @@ func Init() (db DB, err error) {
 	return
 }
 
-func (db DB) GetProxies() (proxies []types.Proxy, err error) {
-	res := db.
-		Where("status = ?", types.ProxyStatusActive).
+func (db DB) GetProxies(params map[string]interface{}) (proxies []types.Proxy, err error) {
+	query := db.DB
+
+	if v, ok := params["status"]; ok {
+		query = query.Where("status = ?", v)
+	}
+
+	res := query.
 		Order("updated_at DESC").
 		Find(&proxies)
 	if res.Error != nil {
