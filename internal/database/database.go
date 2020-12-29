@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"strconv"
 
 	"github.com/stefanoschrs/proxymeister/pkg/types"
 
@@ -36,6 +37,20 @@ func (db DB) GetProxies(params map[string]interface{}) (proxies []types.Proxy, e
 
 	if v, ok := params["status"]; ok {
 		query = query.Where("status = ?", v)
+	}
+
+	if v, ok := params["latency"]; ok {
+		latency, parseErr := strconv.ParseInt(v.(string), 10, 64)
+		if parseErr == nil {
+			query = query.Where("latency < ?", latency)
+		}
+	}
+
+	if v, ok := params["limit"]; ok {
+		limit, parseErr := strconv.ParseInt(v.(string), 10, 64)
+		if parseErr == nil {
+			query = query.Limit(int(limit))
+		}
 	}
 
 	res := query.
