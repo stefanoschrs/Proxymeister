@@ -38,7 +38,10 @@ func SetRoutes(router *gin.Engine) {
 
 	// Private routes: /admin
 	apiPrivate := router.Group("/admin")
-	// TODO: Add some auth
+	// TODO: Read from file
+	apiPrivate.Use(gin.BasicAuth(map[string]string{
+		os.Getenv("ADMIN_USER"): os.Getenv("ADMIN_PASSWORD"),
+	}))
 	apiPrivate.Use(cors.New(corsConfig))
 	{
 		apiPrivate.POST("/fetch", postAdminFetch)
