@@ -15,7 +15,9 @@ var Name = "sslproxies.org"
 var Url = "https://www.sslproxies.org/"
 
 func Fetch() (proxies []types.Proxy, err error) {
-	body, err := utils.HttpGet(Url)
+	body, err := utils.HttpProxyfiedGet(types.ProxifiedGetOptions{
+		TargetUrl: Url,
+	})
 	if err != nil {
 		return
 	}
@@ -43,6 +45,7 @@ func process(body []byte) (proxies []types.Proxy, err error) {
 		proxy := types.Proxy{
 			Ip:     strings.TrimSpace(s[0]),
 			Port:   int(port),
+			Status: types.ProxyStatusFresh,
 			Source: Name,
 		}
 		proxies = append(proxies, proxy)

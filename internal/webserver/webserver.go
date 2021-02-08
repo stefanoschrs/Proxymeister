@@ -38,9 +38,13 @@ func SetRoutes(router *gin.Engine) {
 
 	// Private routes: /admin
 	apiPrivate := router.Group("/admin")
-	// TODO: Read from file
+	// TODO: Read from file e.g .htaccess, config.yml
+	adminUser := os.Getenv("ADMIN_USER")
+	if adminUser == "" {
+		adminUser = "admin"
+	}
 	apiPrivate.Use(gin.BasicAuth(map[string]string{
-		os.Getenv("ADMIN_USER"): os.Getenv("ADMIN_PASSWORD"),
+		adminUser: os.Getenv("ADMIN_PASS"),
 	}))
 	apiPrivate.Use(cors.New(corsConfig))
 	{

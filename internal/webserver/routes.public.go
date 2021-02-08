@@ -5,6 +5,7 @@ import (
 	"github.com/stefanoschrs/proxymeister/pkg/types"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/stefanoschrs/proxymeister/internal/utils"
@@ -12,10 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Health check
 func headHealth(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+// Return active proxies
+//
 // @Param limit		query	int		false	-1		"Limit results to value"
 // @Param latency	query	int		false	-1		"Filter by latency lower than value"
 // @Param fields	query	string	false	""		"Return fields: address,ip,port,latency,updatedAt"
@@ -37,19 +41,28 @@ func getProxies(c *gin.Context) {
 	fields := c.Query("fields")
 	format := c.Query("format")
 
-	var proxies []map[string]interface{}
+	var proxies []types.ProxyFE
 	for _, dbPproxy := range dbProxies {
-		proxy := make(map[string]interface{})
-		proxy["address"] = fmt.Sprintf("%s:%d", dbPproxy.Ip, dbPproxy.Port)
-		proxy["ip"] = dbPproxy.Ip
-		proxy["port"] = dbPproxy.Port
-		proxy["latency"] = dbPproxy.Latency
-		proxy["updatedAt"] = dbPproxy.UpdatedAt
-
-		for key := range proxy {
-			if fields != "" && !strings.Contains(fields, key) {
-				delete(proxy, key)
-			}
+		proxy := types.ProxyFE{}
+		if fields == "" || strings.Contains(fields, "address") {
+			address := fmt.Sprintf("%s:%d", dbPproxy.Ip, dbPproxy.Port)
+			proxy.Address = &address
+		}
+		if fields == "" || strings.Contains(fields, "ip") {
+			ip := dbPproxy.Ip
+			proxy.Ip = &ip
+		}
+		if fields == "" || strings.Contains(fields, "port") {
+			port := dbPproxy.Port
+			proxy.Port = &port
+		}
+		if fields == "" || strings.Contains(fields, "latency") {
+			latency := dbPproxy.Latency
+			proxy.Latency = &latency
+		}
+		if fields == "" || strings.Contains(fields, "updatedAt") {
+			updatedAt := dbPproxy.UpdatedAt
+			proxy.UpdatedAt = &updatedAt
 		}
 
 		proxies = append(proxies, proxy)
@@ -58,17 +71,24 @@ func getProxies(c *gin.Context) {
 	if format == "csv" {
 		var result string
 
-		if len(proxies) > 0 {
-			for key := range proxies[0] {
-				result += fmt.Sprintf("%v,", key)
-			}
-			result = result[:len(result)-1]
-			result += "\n"
+		if len(proxies) == 0 {
+			c.String(http.StatusOK, result)
+			return
 		}
 
+		// Create header
+		v := reflect.ValueOf(proxies[0])
+		for i := 0; i < v.NumField(); i++ {
+			result += fmt.Sprintf("%v,", v.Type().Field(i).Name)
+		}
+		result = result[:len(result)-1]
+		result += "\n"
+
+		// Add rows
 		for _, proxy := range proxies {
-			for _, val := range proxy {
-				result += fmt.Sprintf("%v,", val)
+			v = reflect.ValueOf(proxy)
+			for i := 0; i < v.NumField(); i++ {
+				result += fmt.Sprintf("%v,", v.Field(i).Interface())
 			}
 			result = result[:len(result)-1]
 			result += "\n"

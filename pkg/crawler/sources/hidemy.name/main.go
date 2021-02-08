@@ -16,7 +16,9 @@ var Name = "hidemy.name"
 var Url = "https://hidemy.name/en/proxy-list/?maxtime=3000&type=s&anon=4#list/"
 
 func Fetch() (proxies []types.Proxy, err error) {
-	body, err := utils.HttpGet(Url)
+	body, err := utils.HttpProxyfiedGet(types.ProxifiedGetOptions{
+		TargetUrl: Url,
+	})
 	if err != nil {
 		return
 	}
@@ -48,6 +50,7 @@ func process(body []byte) (proxies []types.Proxy, err error) {
 		proxies = append(proxies, types.Proxy{
 			Ip:     goquery.NewDocumentFromNode(s.Find("td").Get(0)).Text(),
 			Port:   int(port),
+			Status: types.ProxyStatusFresh,
 			Source: Name,
 		})
 	})

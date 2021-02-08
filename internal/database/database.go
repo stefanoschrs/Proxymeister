@@ -67,6 +67,24 @@ func (db DB) GetProxies(params map[string]interface{}) (proxies []types.Proxy, e
 	return
 }
 
+func (db DB) GetProxiesInternal() (proxies []types.Proxy, err error) {
+	query := db.DB
+
+	res := query.
+		Where("failed_checks < 10").
+		Order("status ASC, updated_at DESC").
+		Find(&proxies)
+	if res.Error != nil {
+		err = res.Error
+		return
+	}
+	if len(proxies) == 0 {
+		proxies = []types.Proxy{}
+	}
+
+	return
+}
+
 func (db DB) CreateProxy(p types.Proxy) (proxy types.Proxy, created bool, err error) {
 	if net.ParseIP(p.Ip) == nil {
 		err = errors.New(types.ErrInvalidIp)
@@ -79,12 +97,12 @@ func (db DB) CreateProxy(p types.Proxy) (proxy types.Proxy, created bool, err er
 
 	res := db.
 		Where("ip = ? AND port = ?", p.Ip, p.Port).
-		First(&proxy)
-	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		Find(&proxy)
+	if res.Error != nil {
 		err = res.Error
 		return
 	}
-	if res.Error == nil {
+	if res.RowsAffected > 0 {
 		return
 	}
 

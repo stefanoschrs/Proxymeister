@@ -2,11 +2,11 @@ package cron
 
 import (
 	"fmt"
-	"github.com/stefanoschrs/proxymeister/internal/logging"
 	"log"
 	"strings"
 
 	"github.com/stefanoschrs/proxymeister/internal/database"
+	"github.com/stefanoschrs/proxymeister/internal/logging"
 
 	"github.com/stefanoschrs/proxymeister/pkg/crawler"
 	"github.com/stefanoschrs/proxymeister/pkg/types"
@@ -45,7 +45,7 @@ func CheckProxies(db database.DB) {
 
 	// TODO: Retrieve from .env
 	workerCount := 10
-	validationTries := 2
+	validationTries := 3
 
 	workerData := make(chan types.Proxy, workerCount)
 	tracker := make(chan empty)
@@ -55,6 +55,8 @@ func CheckProxies(db database.DB) {
 		logging.Error("utils.GetMyIP", err)
 		return
 	}
+
+	var workingProxies uint
 
 	// Initialize workers
 	for i := 0; i < workerCount; i++ {
@@ -69,18 +71,23 @@ func CheckProxies(db database.DB) {
 				for j := 0; j < validationTries; j++ {
 					latency, validationErr := validator.Validate(myIp, proxy.Ip, proxy.Port, true)
 					if validationErr != nil {
+						//logging.Debugf("[%s] %v", proxy.Ip, validationErr.Error())
 						processValidationError(validationErr)
 						continue
 					}
+					//logging.Debugf("[%s] Success", proxy.Ip)
 
 					sumLatency += latency
 					successfulTries += 1
 				}
 
-				if sumLatency > 0 {
+				if successfulTries > 1 {
 					proxy.Status = types.ProxyStatusActive
 					proxy.Latency = sumLatency / successfulTries
 					proxy.FailedChecks = 0
+
+					// TODO: Move somewhere else
+					workingProxies++
 				} else {
 					proxy.Status = types.ProxyStatusInactive
 					proxy.Latency = 0
@@ -99,11 +106,12 @@ func CheckProxies(db database.DB) {
 	}
 
 	// Add data to be processed
-	proxies, err := db.GetProxies(map[string]interface{}{})
+	proxies, err := db.GetProxiesInternal()
 	if err != nil {
 		logging.Error("db.GetProxies", err)
 		return
 	}
+	//proxies = proxies[:10]
 
 	logging.Debugf("Found %d proxies", len(proxies))
 	for _, proxy := range proxies {
@@ -117,7 +125,7 @@ func CheckProxies(db database.DB) {
 	}
 	close(tracker)
 
-	logging.Debug("Checking finished!")
+	logging.Debugf("Checking finished! Working: %d/%d", workingProxies, len(proxies))
 }
 
 func Init(db database.DB) (c *cron.Cron, err error) {
@@ -131,7 +139,6 @@ func Init(db database.DB) (c *cron.Cron, err error) {
 		err = fmt.Errorf("failed to add fetchProxies func. %w", err)
 		return
 	}
-	//FetchProxies(db)
 
 	// checkProxies
 	_, err = c.AddFunc("0 */2 * * *", func() {
@@ -141,7 +148,6 @@ func Init(db database.DB) (c *cron.Cron, err error) {
 		err = fmt.Errorf("failed to add checkProxies func. %w", err)
 		return
 	}
-	//CheckProxies(db)
 
 	// TODO: Clean up proxies with X failed tries
 
@@ -161,6 +167,8 @@ func processValidationError(err error) {
 		return
 	} else if strings.Contains(err.Error(), "connect: connection refused") {
 		return
+	} else if strings.Contains(err.Error(), "connect: no route to host") {
+		return
 	} else if strings.Contains(err.Error(), "i/o timeout") {
 		return
 	} else if strings.Contains(err.Error(), "read: connection reset by peer") {
@@ -178,6 +186,15 @@ func processValidationError(err error) {
 	} else if strings.Contains(err.Error(), "Forwarding failure") {
 		return
 	} else if strings.Contains(err.Error(), "Bad Gateway") {
+		return
+	} else if strings.Contains(err.Error(), "Method Not Allowed") {
+		return
+	} else if strings.Contains(err.Error(), "Service Unavailable") {
+		return
+	}
+
+	// Custom
+	if strings.Contains(err.Error(), types.ErrEmptyResponse) {
 		return
 	}
 

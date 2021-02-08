@@ -48,7 +48,7 @@ func FetchProxies() (proxies []types.Proxy, err error) {
 		}
 
 		if os.Getenv("DEBUG") == "true" {
-			log.Printf("Fetching %s (%s)\n", name, url)
+			log.Printf("Fetching %s (%s)\n", name.(string), url.(string))
 		}
 
 		sourceProxies, fetchErr := fetch.(func() ([]types.Proxy, error))()
@@ -58,7 +58,7 @@ func FetchProxies() (proxies []types.Proxy, err error) {
 		}
 
 		if os.Getenv("DEBUG") == "true" {
-			log.Printf("Found %d proxies for %s\n", len(sourceProxies), name)
+			log.Printf("Found %d proxies for %s\n", len(sourceProxies), name.(string))
 		}
 
 		proxies = append(proxies, sourceProxies...)

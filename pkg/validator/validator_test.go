@@ -28,7 +28,7 @@ func TestValidate(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		latency, err := Validate(myIp, testCase.Ip, testCase.Port, false)
+		latency, err := Validate(myIp, testCase.Ip, testCase.Port, true)
 		if err != nil {
 			log.Println(err)
 		} else {
